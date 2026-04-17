@@ -1,0 +1,23 @@
+# ClusterIP Service for the document-ingestion FastAPI app.
+#
+# Dapr invokes the app directly via the pod IP (using the dapr.io/app-port
+# annotation), so this Service is not required for the ingestion pipeline.
+# It is provided for health monitoring, kubectl port-forwarding during
+# development, and any future internal callers.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-ingestion
+  namespace: document-ingestion
+  labels:
+    app: document-ingestion
+spec:
+  type: ClusterIP
+  selector:
+    app: document-ingestion
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

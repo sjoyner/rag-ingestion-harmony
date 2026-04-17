@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: document-ingestion-config
+  namespace: document-ingestion
+data:
+  AWS_REGION: "us-east-1"
+  CLAUDE_MODEL: "claude-sonnet-4-6"
+  # vLLM sidecar containers are co-located in the same pod, so localhost works.
+  NEMOTRON_VLLM_BASE_URL: "http://localhost:8001/v1"
+  EMBED_VLLM_BASE_URL: "http://localhost:8002/v1"
+  EMBEDDING_MODEL: "nvidia/NV-Embed-v2"
+  MAX_CONCURRENT_PAGES: "4"
+  # Startup timeouts are long because Nemotron (~14 GB) and NV-Embed (~9 GB)
+  # take several minutes to load from the HuggingFace cache on first start.
+  VLLM_HEALTH_URL: "http://localhost:8001/health"
+  VLLM_STARTUP_TIMEOUT: "600"
+  VLLM_STARTUP_POLL_INTERVAL: "5.0"
+  EMBED_HEALTH_URL: "http://localhost:8002/health"
+  EMBED_STARTUP_TIMEOUT: "600"
+  EMBED_STARTUP_POLL_INTERVAL: "5.0"

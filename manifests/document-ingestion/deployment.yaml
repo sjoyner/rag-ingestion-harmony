@@ -1,0 +1,221 @@
+# Deployment: document-ingestion
+#
+# Three-container pod:
+#
+#   app        FastAPI service (port 8000). Handles Dapr SQS binding invocations
+#              at POST /document-parsing-ingest. Waits in lifespan startup until
+#              both vLLM health endpoints respond before accepting traffic.
+#
+#   nemotron   vLLM inference server for nvidia/NVIDIA-Nemotron-Parse-v1.2
+#              (port 8001). Rasterizes PDF pages to structured text/markdown.
+#              gpu-memory-utilization: 0.58 (~14 GB on a 24 GB card).
+#
+#   embedder   vLLM inference server for nvidia/NV-Embed-v2 (port 8002).
+#              Generates 4096-dim embeddings for pgvector storage.
+#              gpu-memory-utilization: 0.37 (~9 GB on a 24 GB card).
+#
+# GPU topology:
+#   Both vLLM containers request nvidia.com/gpu: 1. With the time-slicing
+#   ConfigMap in nvidia-device-plugin.yaml (replicas: 2), both containers
+#   are scheduled onto the same physical GPU and share its VRAM pool (~23 GB
+#   combined, fitting a single 24 GB card). Do not enable memory isolation or
+#   MIG — the containers intentionally share the physical GPU memory budget.
+#
+# Replicas: 1 — the pod holds two GPU slices. Scale horizontally only if the
+# node has additional physical GPU capacity.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-ingestion
+  namespace: document-ingestion
+  labels:
+    app: document-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: document-ingestion
+  template:
+    metadata:
+      labels:
+        app: document-ingestion
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "document-ingestion"
+        dapr.io/app-port: "8000"
+        dapr.io/log-level: "info"
+        # Raise the Dapr sidecar's HTTP timeout to accommodate long processing.
+        dapr.io/http-read-buffer-size: "4"
+        dapr.io/app-max-concurrency: "4"
+    spec:
+      serviceAccountName: document-ingestion
+      # Schedule onto the GPU worker node created in kind-cluster.yaml.
+      nodeSelector:
+        hardware: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: huggingface-cache
+          persistentVolumeClaim:
+            claimName: huggingface-cache
+
+      containers:
+
+        # ── FastAPI application ─────────────────────────────────────────────────
+        - name: app
+          image: ghcr.io/simpliphi/document-ingestion-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: document-ingestion-config
+            - secretRef:
+                name: document-ingestion-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          # The app's lifespan startup polls both vLLM health URLs before
+          # serving; this readiness probe ensures Kubernetes agrees.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            # Allow up to 660 s for both vLLM servers to fully load their models
+            # before the pod is considered failed.
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 60
+
+        # ── Nemotron Parse vLLM server ──────────────────────────────────────────
+        - name: nemotron
+          image: vllm/vllm-openai:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--model"
+            - "nvidia/NVIDIA-Nemotron-Parse-v1.2"
+            - "--port"
+            - "8001"
+            - "--gpu-memory-utilization"
+            - "0.58"
+            - "--max-model-len"
+            - "16384"
+            - "--trust-remote-code"
+            - "--served-model-name"
+            - "nemotron-parse"
+          ports:
+            - name: vllm-parse
+              containerPort: 8001
+              protocol: TCP
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: document-ingestion-secrets
+                  key: HUGGING_FACE_HUB_TOKEN
+          volumeMounts:
+            - name: huggingface-cache
+              mountPath: /root/.cache/huggingface
+              subPath: nemotron
+          resources:
+            requests:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "20Gi"
+              nvidia.com/gpu: "1"
+          # 600 s window for model download + load. The app container's startup
+          # probe will block app traffic until this resolves.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 30
+            failureThreshold: 3
+
+        # ── NV-Embed-v2 vLLM server ─────────────────────────────────────────────
+        - name: embedder
+          image: vllm/vllm-openai:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--model"
+            - "nvidia/NV-Embed-v2"
+            - "--port"
+            - "8002"
+            - "--gpu-memory-utilization"
+            - "0.37"
+            - "--max-model-len"
+            - "32768"
+            - "--trust-remote-code"
+            - "--served-model-name"
+            - "nv-embed-v2"
+            - "--task"
+            - "embed"
+          ports:
+            - name: vllm-embed
+              containerPort: 8002
+              protocol: TCP
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: document-ingestion-secrets
+                  key: HUGGING_FACE_HUB_TOKEN
+          volumeMounts:
+            - name: huggingface-cache
+              mountPath: /root/.cache/huggingface
+              subPath: embedder
+          resources:
+            requests:
+              cpu: "4"
+              memory: "12Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            periodSeconds: 30
+            failureThreshold: 3

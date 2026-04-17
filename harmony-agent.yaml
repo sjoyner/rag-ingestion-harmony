@@ -1,0 +1,190 @@
+# harmony-agent.yaml
+#
+# Deploys the harmony-agent into the rag-cluster and declares the Harmony
+# Secret resources that back the document-ingestion-service credentials.
+#
+# The harmony-agent connects to the Harmony control plane via mTLS gRPC,
+# subscribes to secret change events for this environment, and automatically
+# syncs values into Kubernetes Secrets. Certs are generated and rotated by
+# Harmony — no manual PKI work is needed.
+#
+# Setup steps:
+#
+#   1. Replace HARMONY_GRPC_ADDR below with the host:port of your Harmony
+#      control plane's gRPC listener (default port 9443).
+#
+#   2. Set secret values (agent will sync them to the cluster automatically):
+#
+#        hctl secret set-value --env rag doc-ingestion-anthropic-api-key        sk-ant-...
+#        hctl secret set-value --env rag doc-ingestion-documents-s3-bucket      my-bucket
+#        hctl secret set-value --env rag doc-ingestion-entity-service-base-url  https://...
+#        hctl secret set-value --env rag doc-ingestion-entity-service-auth-url  https://...
+#        hctl secret set-value --env rag doc-ingestion-entity-service-client-id <id>
+#        hctl secret set-value --env rag doc-ingestion-entity-service-client-secret <secret>
+#        hctl secret set-value --env rag doc-ingestion-vector-db-dsn            postgresql+asyncpg://...
+#        hctl secret set-value --env rag doc-ingestion-aws-access-key-id        AKIA...
+#        hctl secret set-value --env rag doc-ingestion-aws-secret-access-key    <key>
+#        hctl secret set-value --env rag doc-ingestion-hugging-face-hub-token   hf_...
+#
+# The KubernetesAgent resource generates a CA and client certificate, installs
+# them as a Kubernetes Secret (harmony-agent-certs in harmony-system), and
+# deploys the harmony-agent Deployment. Certs auto-rotate when they have less
+# than 30 days remaining (default TTL is 1 year).
+
+# ── Harmony Secret resources ────────────────────────────────────────────────
+# These are control-plane-side declarations. The actual values are set via
+# `hctl secret set-value` and never committed to git.
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-anthropic-api-key
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "Anthropic API key for the document-ingestion-service app container"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-documents-s3-bucket
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "S3 bucket name for document storage"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-entity-service-base-url
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "Base URL of the entity service"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-entity-service-auth-url
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "OAuth token endpoint for the entity service"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-entity-service-client-id
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "OAuth client ID for the entity service"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-entity-service-client-secret
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "OAuth client secret for the entity service"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-vector-db-dsn
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "PostgreSQL+pgvector DSN (postgresql+asyncpg://user:pass@host:5432/db)"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-aws-access-key-id
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "AWS access key ID for S3 access"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-aws-secret-access-key
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "AWS secret access key for S3 access"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: doc-ingestion-hugging-face-hub-token
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "HuggingFace Hub token for downloading gated models (Nemotron Parse, NV-Embed-v2)"
+
+# ── KubernetesAgent ─────────────────────────────────────────────────────────
+# Deploys the harmony-agent into the rag-cluster. Harmony generates and
+# manages the mTLS certificates automatically.
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: KubernetesAgent
+metadata:
+  name: rag-cluster-agent
+  labels:
+    app: rag
+spec:
+  provider: harmony
+  # Reference the KubernetesCluster auto-registered by the KindCluster resource.
+  clusterRef: rag-cluster
+  # Must match the name of this Harmony environment.
+  environment: rag
+  # Namespace to deploy the agent into inside the cluster.
+  namespace: harmony-system
+  # Container image for the harmony-agent binary.
+  # Build with: docker build -f deploy/Dockerfile --target harmony-agent -t ghcr.io/sjoyner/harmony-agent:latest .
+  image: ghcr.io/sjoyner/harmony-agent:latest
+  # Address of the Harmony control plane gRPC listener reachable from inside
+  # the kind cluster. Replace with your actual host:port.
+  # For a kind cluster on the same machine, use the host's LAN IP or
+  # host.docker.internal (Linux: add --add-host in kind config).
+  grpcAddress: "host.docker.internal:9443"
+  # Certificate validity period (default 8760h = 1 year). Harmony will rotate
+  # automatically when fewer than 30 days remain.
+  certTTL: "8760h"
+  dependsOn:
+    - kind: KindCluster
+      name: rag-cluster

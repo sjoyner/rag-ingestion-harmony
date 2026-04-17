@@ -1,0 +1,43 @@
+# Dapr SQS input binding component.
+#
+# The Dapr sidecar polls the SQS queue and invokes
+# POST /document-parsing-ingest on the app container whenever a message
+# arrives. The app must return 2xx; non-2xx responses cause Dapr to
+# leave the message in the queue for retry (up to visibilityTimeoutInSeconds).
+#
+# AWS credentials are read from the document-ingestion-secrets Kubernetes
+# Secret via Dapr's built-in Kubernetes secret store.
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: document-parsing-ingest
+  namespace: document-ingestion
+spec:
+  type: bindings.aws.sqs
+  version: v1
+  metadata:
+    - name: queueName
+      value: "document-parsing-ingest"
+    - name: region
+      value: "us-east-1"
+    - name: accessKey
+      secretKeyRef:
+        name: document-ingestion-secrets
+        key: AWS_ACCESS_KEY_ID
+    - name: secretKey
+      secretKeyRef:
+        name: document-ingestion-secrets
+        key: AWS_SECRET_ACCESS_KEY
+    - name: direction
+      value: "input"
+    # SQS long polling — reduces empty receives and cost.
+    - name: waitTimeSeconds
+      value: "20"
+    # Must exceed the maximum time a single document takes to process.
+    - name: visibilityTimeoutInSeconds
+      value: "300"
+    - name: messageMaxNumber
+      value: "10"
+auth:
+  secretStore: kubernetes

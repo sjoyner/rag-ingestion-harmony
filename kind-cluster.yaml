@@ -1,0 +1,76 @@
+# kind-cluster.yaml
+#
+# Creates a kind Kubernetes cluster on the dev host for running the
+# document-ingestion-service and its GPU-accelerated vLLM workloads.
+#
+# Prerequisites on the target host:
+#   - kind   (https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+#   - docker (running)
+#   - NVIDIA Container Toolkit installed and configured
+#     (https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+#   - NVIDIA drivers installed on the host
+#
+# GPU notes:
+#   The document-ingestion-service requires two vLLM inference servers:
+#     - Nemotron Parse v1.2: ~14 GB VRAM (gpu-memory-utilization 0.58)
+#     - NV-Embed-v2:         ~9 GB VRAM  (gpu-memory-utilization 0.37)
+#   Total: ~24 GB VRAM. A single NVIDIA A40, A100, or RTX 4090 is sufficient.
+#
+#   The cluster is configured to use the NVIDIA container runtime so that GPU
+#   resources are visible inside pods. After the cluster is ready, deploy the
+#   NVIDIA device plugin (included in manifests/document-ingestion/):
+#     kubectl apply -f manifests/document-ingestion/nvidia-device-plugin.yaml
+#
+# registerCluster causes Harmony to automatically create a KubernetesCluster
+# resource named "rag-cluster" so that KubernetesApp and HelmRelease resources
+# can reference it via clusterRef without hard-coding a kubeContext.
+
+apiVersion: harmony.io/v1alpha1
+kind: KindCluster
+metadata:
+  name: rag-cluster
+  labels:
+    app: rag
+spec:
+  provider: harmony
+  target:
+    selector:
+      matchLabels:
+        role: dev
+  name: rag-cluster
+  image: kindest/node:v1.32.0
+  kubeconfigPath: /home/dev/.kube/rag-cluster.kubeconfig
+  registerCluster: {}
+  state: present
+  config: |
+    kind: Cluster
+    apiVersion: kind.x-k8s.io/v1alpha4
+    # Wire the NVIDIA container runtime into containerd so that pods requesting
+    # nvidia.com/gpu resources are scheduled onto the correct runtime.
+    containerdConfigPatches:
+      - |-
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+          privileged_without_host_devices = false
+          runtime_type = "io.containerd.runc.v2"
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+            BinaryName = "/usr/bin/nvidia-container-runtime"
+    nodes:
+      - role: control-plane
+        kubeadmConfigPatches:
+          - |
+            kind: InitConfiguration
+            nodeRegistration:
+              kubeletExtraArgs:
+                node-labels: "ingress-ready=true"
+        extraPortMappings:
+          - containerPort: 80
+            hostPort: 8080
+            protocol: TCP
+          - containerPort: 443
+            hostPort: 8443
+            protocol: TCP
+      - role: worker
+        labels:
+          # Label used by the document-ingestion Deployment nodeSelector to
+          # ensure the pod lands on the GPU-equipped worker node.
+          hardware: gpu

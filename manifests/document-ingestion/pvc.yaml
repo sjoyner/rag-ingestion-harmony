@@ -1,0 +1,25 @@
+# PersistentVolumeClaim for the HuggingFace model cache.
+#
+# Nemotron Parse v1.2 and NV-Embed-v2 are downloaded from HuggingFace on
+# first start and cached here. Subsequent pod restarts skip the download.
+#
+# Storage estimate:
+#   nvidia/NVIDIA-Nemotron-Parse-v1.2  ~28 GB (fp16 weights)
+#   nvidia/NV-Embed-v2                 ~16 GB (fp16 weights)
+#   Total (with index files):          ~50 GB
+#
+# Increase storage if additional models are added.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: huggingface-cache
+  namespace: document-ingestion
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 60Gi
+  # kind uses the standard local-path-provisioner storage class by default.
+  storageClassName: standard
