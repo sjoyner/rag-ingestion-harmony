@@ -5,6 +5,10 @@ metadata:
   namespace: document-ingestion
 data:
   AWS_REGION: "us-east-1"
+  DOCUMENTS_S3_BUCKET: "rag-med"
+  # Set AWS_ENDPOINT_URL_S3 to point at a MinIO (or other S3-compatible) server.
+  # Leave empty or remove this key to use native AWS S3.
+  AWS_ENDPOINT_URL_S3: "http://host.docker.internal:9000/"
   CLAUDE_MODEL: "claude-sonnet-4-6"
   # vLLM sidecar containers are co-located in the same pod, so localhost works.
   NEMOTRON_VLLM_BASE_URL: "http://localhost:8001/v1"

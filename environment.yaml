@@ -1,0 +1,41 @@
+# Environment: rag
+#
+# The git deploy key is stored as a *global* Harmony secret so it can be
+# shared across environments without being tied to any one of them.
+# Reference it with "@GlobalSecret/<name>" — Harmony resolves this at sync
+# time from the global secret store.
+#
+# First-time setup order:
+#
+#   1. Create the environment via the Harmony web UI or API (no git source yet,
+#      or with a public repo temporarily). This gives Harmony an environment
+#      context to sync into.
+#
+#   2. Store the deploy key as a global secret:
+#        cat ~/.ssh/harmony-deploy | hctl secret set git-deploy-key --global
+#
+#   3. Update the environment's source.privateKey to "@GlobalSecret/git-deploy-key"
+#      via the web UI or API, or commit this file and trigger a sync.
+#
+#   4. Add the public key (~/.ssh/harmony-deploy.pub) as a read-only deploy key
+#      on the GitHub repository.
+#
+# After that, Harmony resolves "@GlobalSecret/git-deploy-key" on every sync
+# automatically. The secret is stored once and usable by any environment.
+
+apiVersion: harmony.io/v1alpha1
+kind: Environment
+metadata:
+  name: rag
+spec:
+  display: "RAG Ingestion"
+  source:
+    uri: git@github.com:sjoyner/rag-ingestion-harmony.git
+    branch: main
+    privateKey: "@GlobalSecret/git-deploy-key"
+  pollInterval: 60s
+  reconcilePolicy:
+    schedule: "0 */6 * * *"
+  suspendPolicy:
+    retainKinds:
+      - KindCluster

@@ -15,16 +15,17 @@
 #
 #   2. Set secret values (agent will sync them to the cluster automatically):
 #
-#        hctl secret set-value --env rag doc-ingestion-anthropic-api-key        sk-ant-...
-#        hctl secret set-value --env rag doc-ingestion-documents-s3-bucket      my-bucket
-#        hctl secret set-value --env rag doc-ingestion-entity-service-base-url  https://...
-#        hctl secret set-value --env rag doc-ingestion-entity-service-auth-url  https://...
-#        hctl secret set-value --env rag doc-ingestion-entity-service-client-id <id>
-#        hctl secret set-value --env rag doc-ingestion-entity-service-client-secret <secret>
-#        hctl secret set-value --env rag doc-ingestion-vector-db-dsn            postgresql+asyncpg://...
-#        hctl secret set-value --env rag doc-ingestion-aws-access-key-id        AKIA...
-#        hctl secret set-value --env rag doc-ingestion-aws-secret-access-key    <key>
-#        hctl secret set-value --env rag doc-ingestion-hugging-face-hub-token   hf_...
+#        hctl secret set minio-access-key-id                    -n rag --value <access-key>
+#        hctl secret set minio-secret-access-key                -n rag --value <secret-key>
+#        hctl secret set doc-ingestion-anthropic-api-key        -n rag --value sk-ant-...
+#        hctl secret set doc-ingestion-entity-service-base-url  -n rag --value https://...
+#        hctl secret set doc-ingestion-entity-service-auth-url  -n rag --value https://...
+#        hctl secret set doc-ingestion-entity-service-client-id -n rag --value <id>
+#        hctl secret set doc-ingestion-entity-service-client-secret -n rag --value <secret>
+#        hctl secret set doc-ingestion-vector-db-dsn            -n rag --value postgresql+asyncpg://...
+#        hctl secret set doc-ingestion-aws-access-key-id        -n rag --value AKIA...
+#        hctl secret set doc-ingestion-aws-secret-access-key    -n rag --value <key>
+#        hctl secret set doc-ingestion-hugging-face-hub-token   -n rag --value hf_...
 #
 # The KubernetesAgent resource generates a CA and client certificate, installs
 # them as a Kubernetes Secret (harmony-agent-certs in harmony-system), and
@@ -33,7 +34,31 @@
 
 # ── Harmony Secret resources ────────────────────────────────────────────────
 # These are control-plane-side declarations. The actual values are set via
-# `hctl secret set-value` and never committed to git.
+# `hctl secret set` and never committed to git.
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: minio-access-key-id
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "MinIO access key ID"
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: Secret
+metadata:
+  name: minio-secret-access-key
+  annotations:
+    harmony.io/deletion-policy: retain
+spec:
+  provider: harmony
+  type: manual
+  description: "MinIO secret access key"
 
 ---
 apiVersion: harmony.io/v1alpha1
@@ -46,18 +71,6 @@ spec:
   provider: harmony
   type: manual
   description: "Anthropic API key for the document-ingestion-service app container"
-
----
-apiVersion: harmony.io/v1alpha1
-kind: Secret
-metadata:
-  name: doc-ingestion-documents-s3-bucket
-  annotations:
-    harmony.io/deletion-policy: retain
-spec:
-  provider: harmony
-  type: manual
-  description: "S3 bucket name for document storage"
 
 ---
 apiVersion: harmony.io/v1alpha1
