@@ -1,0 +1,9 @@
+apiVersion: harmony.io/v1alpha1
+kind: Host
+metadata:
+  name: dev-local
+  labels:
+    role: dev
+spec:
+  provider: harmony
+  connectionType: local
