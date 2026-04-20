@@ -57,7 +57,7 @@ metadata:
 spec:
   provider: helm
   clusterRef: rag-cluster
-  chart: dapr
+  chart: dapr/dapr
   version: "1.14.4"
   kubeNamespace: dapr-system
   releaseName: dapr
