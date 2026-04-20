@@ -39,7 +39,7 @@ spec:
         role: dev
   name: rag-cluster
   image: kindest/node:v1.32.0
-registerCluster: {}
+  registerCluster: {}
   state: present
   config: |
     kind: Cluster
