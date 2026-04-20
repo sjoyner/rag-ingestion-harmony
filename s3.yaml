@@ -11,3 +11,6 @@ spec:
   endpoint: "http://localhost:4566"
   accessKeyId: "@Secret/minio-access-key-id"
   secretAccessKey: "@Secret/minio-secret-access-key"
+  dependsOn:
+    - kind: KubernetesApp
+      name: localstack
