@@ -24,7 +24,7 @@ spec:
           env:
             # Only start the SQS service to keep the container lightweight.
             - name: SERVICES
-              value: "sqs"
+              value: "sqs,s3"
             - name: DEFAULT_REGION
               value: "us-east-1"
             # Eagerly create the queue used by the document-ingestion Dapr binding.
