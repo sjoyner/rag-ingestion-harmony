@@ -22,7 +22,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: time-slicing-config
-  namespace: nvidia-device-plugin
+  namespace: kube-system
 data:
   any: |-
     version: v1
@@ -81,7 +81,6 @@ spec:
         - name: time-slicing-config
           configMap:
             name: time-slicing-config
-            namespace: nvidia-device-plugin
             items:
               - key: any
                 path: time-slicing-config.yaml
