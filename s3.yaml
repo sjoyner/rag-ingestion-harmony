@@ -8,6 +8,6 @@ spec:
   provider: aws
   region: us-east-1
   bucketName: rag-med
-  endpoint: "http://127.0.0.1:9000"
+  endpoint: "http://localhost:4566"
   accessKeyId: "@Secret/minio-access-key-id"
   secretAccessKey: "@Secret/minio-secret-access-key"

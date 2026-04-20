@@ -69,6 +69,9 @@ spec:
           - containerPort: 443
             hostPort: 8443
             protocol: TCP
+          - containerPort: 30566
+            hostPort: 4566
+            protocol: TCP
       - role: worker
         labels:
           # Label used by the document-ingestion Deployment nodeSelector to

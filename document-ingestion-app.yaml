@@ -5,16 +5,23 @@
 # Resources in this file (applied in dependency order by Harmony):
 #   1. HelmRepository  — registers the Dapr Helm chart repository
 #   2. HelmRelease     — installs Dapr into the cluster (required for SQS binding)
-#   3. KubernetesApp   — applies all manifests in manifests/document-ingestion/
+#   3. KubernetesApp   — applies LocalStack (SQS emulator) into the cluster
+#   4. KubernetesApp   — applies all manifests in manifests/document-ingestion/
 #
 # Harmony sequences them correctly:
-#   cluster ready → (Dapr installed, harmony-agent deployed) → app manifests applied
+#   cluster ready → (Dapr installed, harmony-agent deployed, LocalStack ready)
+#     → app manifests applied
 #
 # Secrets are managed by the harmony-agent (see harmony-agent.yaml). The agent
 # watches for secret changes in the Harmony control plane and pushes values into
 # the "document-ingestion-secrets" Kubernetes Secret automatically via mTLS gRPC.
 #
 # Directory layout (dir:// resolved relative to git repo root):
+#
+#   manifests/localstack/
+#   ├── namespace.yaml              Namespace: localstack
+#   ├── deployment.yaml             LocalStack deployment (SERVICES=sqs)
+#   └── service.yaml                ClusterIP on port 4566
 #
 #   manifests/document-ingestion/
 #   ├── namespace.yaml              Namespace: document-ingestion
@@ -23,7 +30,7 @@
 #   ├── secret.yaml                 Note: secrets managed by harmony-agent
 #   ├── harmonysecretbinding-crd.yaml  CRD definition for HarmonySecretBinding
 #   ├── harmonysecretbinding.yaml   Maps Harmony secrets → K8s Secret keys
-#   ├── dapr-component.yaml         Dapr SQS input binding component
+#   ├── dapr-component.yaml         Dapr SQS input binding (→ LocalStack)
 #   ├── nvidia-device-plugin.yaml   NVIDIA device plugin DaemonSet (kube-system)
 #   ├── pvc.yaml                    PVC for HuggingFace model cache (60 Gi)
 #   ├── deployment.yaml             Pod: app + nemotron vLLM + embedder vLLM
@@ -69,6 +76,24 @@ spec:
 apiVersion: harmony.io/v1alpha1
 kind: KubernetesApp
 metadata:
+  name: localstack
+  labels:
+    app: rag
+spec:
+  provider: helm
+  clusterRef: rag-cluster
+  kubeNamespace: localstack
+  source:
+    path: dir://manifests/localstack/
+  state: present
+  dependsOn:
+    - kind: KindCluster
+      name: rag-cluster
+
+---
+apiVersion: harmony.io/v1alpha1
+kind: KubernetesApp
+metadata:
   name: document-ingestion
   labels:
     app: rag
@@ -86,3 +111,5 @@ spec:
       name: dapr
     - kind: KubernetesAgent
       name: rag-cluster-agent
+    - kind: KubernetesApp
+      name: localstack

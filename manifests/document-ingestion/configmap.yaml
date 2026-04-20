@@ -5,18 +5,22 @@ metadata:
   namespace: document-ingestion
 data:
   AWS_REGION: "us-east-1"
-  ENTITY_SERVICE_BASE_URL: ""
-  ENTITY_SERVICE_AUTH_URL: ""
+  ENTITY_SERVICE_BASE_URL: "http://host.docker.internal:16110"
+  ENTITY_SERVICE_AUTH_URL: "http://host.docker.internal:8080"
   DOCUMENTS_S3_BUCKET: "rag-med"
   # Set AWS_ENDPOINT_URL_S3 to point at a MinIO (or other S3-compatible) server.
   # Leave empty or remove this key to use native AWS S3.
-  AWS_ENDPOINT_URL_S3: "http://host.docker.internal:9000/"
+  AWS_ENDPOINT_URL_S3: "http://localstack.localstack.svc.cluster.local:4566"
   CLAUDE_MODEL: "claude-sonnet-4-6"
   # vLLM sidecar containers are co-located in the same pod, so localhost works.
   NEMOTRON_VLLM_BASE_URL: "http://localhost:8001/v1"
   EMBED_VLLM_BASE_URL: "http://localhost:8002/v1"
   EMBEDDING_MODEL: "nvidia/NV-Embed-v2"
   MAX_CONCURRENT_PAGES: "4"
+  VECTOR_DB_HOST: "localhost"
+  VECTOR_DB_PORT: "5432"
+  VECTOR_DB_NAME: "raging"
+  VECTOR_DB_USER: "cvector"
   # Startup timeouts are long because Nemotron (~14 GB) and NV-Embed (~9 GB)
   # take several minutes to load from the HuggingFace cache on first start.
   VLLM_HEALTH_URL: "http://localhost:8001/health"

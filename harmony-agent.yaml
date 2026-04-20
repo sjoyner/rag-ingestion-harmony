@@ -20,9 +20,7 @@
 #        hctl secret set doc-ingestion-anthropic-api-key        -n rag --value sk-ant-...
 #        hctl secret set doc-ingestion-entity-service-client-id -n rag --value <id>
 #        hctl secret set doc-ingestion-entity-service-client-secret -n rag --value <secret>
-#        hctl secret set doc-ingestion-vector-db-dsn            -n rag --value postgresql+asyncpg://...
-#        hctl secret set doc-ingestion-aws-access-key-id        -n rag --value AKIA...
-#        hctl secret set doc-ingestion-aws-secret-access-key    -n rag --value <key>
+#        hctl secret set doc-ingestion-vector-db-password        -n rag --value <password>
 #        hctl secret set doc-ingestion-hugging-face-hub-token   -n rag --value hf_...
 #
 # The KubernetesAgent resource generates a CA and client certificate, installs
@@ -98,37 +96,13 @@ spec:
 apiVersion: harmony.io/v1alpha1
 kind: Secret
 metadata:
-  name: doc-ingestion-vector-db-dsn
+  name: doc-ingestion-vector-db-password
   annotations:
     harmony.io/deletion-policy: retain
 spec:
   provider: harmony
   type: manual
-  description: "PostgreSQL+pgvector DSN (postgresql+asyncpg://user:pass@host:5432/db)"
-
----
-apiVersion: harmony.io/v1alpha1
-kind: Secret
-metadata:
-  name: doc-ingestion-aws-access-key-id
-  annotations:
-    harmony.io/deletion-policy: retain
-spec:
-  provider: harmony
-  type: manual
-  description: "AWS access key ID for S3 access"
-
----
-apiVersion: harmony.io/v1alpha1
-kind: Secret
-metadata:
-  name: doc-ingestion-aws-secret-access-key
-  annotations:
-    harmony.io/deletion-policy: retain
-spec:
-  provider: harmony
-  type: manual
-  description: "AWS secret access key for S3 access"
+  description: "PostgreSQL password for the pgvector database"
 
 ---
 apiVersion: harmony.io/v1alpha1

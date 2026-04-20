@@ -21,6 +21,8 @@ spec:
       value: "document-parsing-ingest"
     - name: region
       value: "us-east-1"
+    - name: endpoint
+      value: "http://localstack.localstack.svc.cluster.local:4566"
     - name: accessKey
       secretKeyRef:
         name: document-ingestion-secrets

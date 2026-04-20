@@ -77,6 +77,34 @@ spec:
                 name: document-ingestion-config
             - secretRef:
                 name: document-ingestion-secrets
+          env:
+            - name: VECTOR_DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: document-ingestion-config
+                  key: VECTOR_DB_HOST
+            - name: VECTOR_DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: document-ingestion-config
+                  key: VECTOR_DB_PORT
+            - name: VECTOR_DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: document-ingestion-config
+                  key: VECTOR_DB_NAME
+            - name: VECTOR_DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: document-ingestion-config
+                  key: VECTOR_DB_USER
+            - name: VECTOR_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: document-ingestion-secrets
+                  key: VECTOR_DB_PASSWORD
+            - name: VECTOR_DB_DSN
+              value: "postgresql+asyncpg://$(VECTOR_DB_USER):$(VECTOR_DB_PASSWORD)@$(VECTOR_DB_HOST):$(VECTOR_DB_PORT)/$(VECTOR_DB_NAME)"
           resources:
             requests:
               cpu: "500m"
