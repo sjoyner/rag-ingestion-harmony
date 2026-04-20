@@ -18,8 +18,6 @@
 #        hctl secret set minio-access-key-id                    -n rag --value <access-key>
 #        hctl secret set minio-secret-access-key                -n rag --value <secret-key>
 #        hctl secret set doc-ingestion-anthropic-api-key        -n rag --value sk-ant-...
-#        hctl secret set doc-ingestion-entity-service-base-url  -n rag --value https://...
-#        hctl secret set doc-ingestion-entity-service-auth-url  -n rag --value https://...
 #        hctl secret set doc-ingestion-entity-service-client-id -n rag --value <id>
 #        hctl secret set doc-ingestion-entity-service-client-secret -n rag --value <secret>
 #        hctl secret set doc-ingestion-vector-db-dsn            -n rag --value postgresql+asyncpg://...
@@ -71,30 +69,6 @@ spec:
   provider: harmony
   type: manual
   description: "Anthropic API key for the document-ingestion-service app container"
-
----
-apiVersion: harmony.io/v1alpha1
-kind: Secret
-metadata:
-  name: doc-ingestion-entity-service-base-url
-  annotations:
-    harmony.io/deletion-policy: retain
-spec:
-  provider: harmony
-  type: manual
-  description: "Base URL of the entity service"
-
----
-apiVersion: harmony.io/v1alpha1
-kind: Secret
-metadata:
-  name: doc-ingestion-entity-service-auth-url
-  annotations:
-    harmony.io/deletion-policy: retain
-spec:
-  provider: harmony
-  type: manual
-  description: "OAuth token endpoint for the entity service"
 
 ---
 apiVersion: harmony.io/v1alpha1

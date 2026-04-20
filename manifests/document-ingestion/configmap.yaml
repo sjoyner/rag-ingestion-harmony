@@ -5,6 +5,8 @@ metadata:
   namespace: document-ingestion
 data:
   AWS_REGION: "us-east-1"
+  ENTITY_SERVICE_BASE_URL: ""
+  ENTITY_SERVICE_AUTH_URL: ""
   DOCUMENTS_S3_BUCKET: "rag-med"
   # Set AWS_ENDPOINT_URL_S3 to point at a MinIO (or other S3-compatible) server.
   # Leave empty or remove this key to use native AWS S3.
