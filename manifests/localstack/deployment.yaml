@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: localstack
-          image: localstack/localstack:latest
-          imagePullPolicy: IfNotPresent
+          image: localstack/localstack:3.8
+          imagePullPolicy: Always
           ports:
             - name: gateway
               containerPort: 4566
